@@ -31,6 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const questionTextEl = document.getElementById('question-text');
   const answerInputEl = document.getElementById('answer-input');
   const btnSubmitAnswer = document.getElementById('btn-submit-answer');
+  const diceOverlayEl = document.getElementById('dice-result-overlay');
+  const diceResultValueEl = document.getElementById('dice-result-value');
 
   
   const firebaseConfig = {
@@ -337,6 +339,31 @@ document.addEventListener('DOMContentLoaded', () => {
     questionModal.classList.add('hidden');
   }
 
+  function sleep(ms) {
+    return new Promise((resolve) => {
+      window.setTimeout(resolve, ms);
+    });
+  }
+
+  async function showDiceRoll(resultValue) {
+    if (!diceOverlayEl || !diceResultValueEl) return;
+
+    diceOverlayEl.classList.remove('hidden');
+    diceResultValueEl.classList.remove('revealed');
+
+    for (let i = 0; i < 8; i++) {
+      const rollingValue = Math.floor(Math.random() * 6) + 1;
+      diceResultValueEl.textContent = String(rollingValue);
+      await sleep(85);
+    }
+
+    diceResultValueEl.textContent = String(resultValue);
+    diceResultValueEl.classList.add('revealed');
+
+    await sleep(700);
+    diceOverlayEl.classList.add('hidden');
+  }
+
   async function movePlayerAndAskQuestion() {
     const myPlayer = playersById.get(currentPlayerId);
     if (!myPlayer) {
@@ -347,6 +374,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const diceValue = Math.floor(Math.random() * 6) + 1;
     const currentPosition = Number(myPlayer.posizione) || 1;
     const newPosition = Math.min(currentPosition + diceValue, totalCells);
+
+    await showDiceRoll(diceValue);
 
     await updateDoc(doc(db, 'giocatori', currentPlayerId), {
       posizione: newPosition
@@ -362,6 +391,8 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       return;
     }
+
+    await sleep(450);
 
     openQuestionModal(selectedQuestion);
   }

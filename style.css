@@ -296,3 +296,50 @@ textarea { width: 100%; margin-bottom: 15px; }
   background: #bbbbbb;
   cursor: not-allowed;
 }
+
+.dice-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.dice-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px 24px;
+  min-width: 180px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.dice-card p {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.dice-value {
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--primary);
+}
+
+.dice-value.revealed {
+  animation: pop-in 0.25s ease;
+}
+
+@keyframes pop-in {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.5;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
