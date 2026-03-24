@@ -2,6 +2,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/fireba
 import {
   addDoc,
   collection,
+  deleteField,
   deleteDoc,
   doc,
   getDoc,
@@ -79,7 +80,7 @@ async function isCurrentUserAdmin(uid) {
 
 function renderPlayersTable(players) {
   if (players.length === 0) {
-    tableBody.innerHTML = '<tr><td colspan="8">Nessun giocatore trovato.</td></tr>';
+    tableBody.innerHTML = '<tr><td colspan="9">Nessun giocatore trovato.</td></tr>';
     return;
   }
 
@@ -110,7 +111,12 @@ function renderPlayersTable(players) {
           <td><input type="number" data-field="ordine_turno" min="1" value="${order}" /></td>
           <td><input type="checkbox" data-field="in_partita" ${isActive ? 'checked' : ''} /></td>
           <td><input type="number" data-field="posizione" min="1" value="${position}" /></td>
-          <td><button class="mini-btn" data-action="save-player">Salva</button></td>
+          <td>
+            <div class="question-actions">
+              <button class="mini-btn" data-action="save-player">Salva</button>
+              <button class="mini-btn btn-danger" data-action="remove-player" ${isActive ? '' : 'disabled'}>Togli dal gioco</button>
+            </div>
+          </td>
         </tr>
       `;
     })
@@ -146,6 +152,62 @@ async function savePlayerFromRow(row) {
 
   await updateDoc(doc(db, 'giocatori', playerId), payload);
   setMessage(`Giocatore ${playerId} aggiornato.`);
+}
+
+function sortPlayersForTurn(players) {
+  return players
+    .slice()
+    .sort((a, b) => {
+      const orderA = Number(a.data.ordine_turno);
+      const orderB = Number(b.data.ordine_turno);
+      if (Number.isFinite(orderA) && Number.isFinite(orderB) && orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return String(a.data.nome || a.id).localeCompare(String(b.data.nome || b.id));
+    });
+}
+
+async function removePlayerFromGame(playerId) {
+  const ok = window.confirm(`Confermi che vuoi togliere ${playerId} dalla partita attiva?`);
+  if (!ok) return;
+
+  const playersSnap = await getDocs(collection(db, 'giocatori'));
+  const players = playersSnap.docs.map((d) => ({ id: d.id, data: d.data() || {} }));
+  const targetPlayer = players.find((player) => player.id === playerId);
+
+  if (!targetPlayer) {
+    setMessage('Giocatore non trovato.', true);
+    return;
+  }
+
+  const activeOrdered = sortPlayersForTurn(
+    players.filter((player) => player.id !== playerId && player.data.in_partita !== false)
+  );
+
+  const gameInfoRef = doc(db, 'stato_partita', 'info_generali');
+  const gameInfoSnap = await getDoc(gameInfoRef);
+  const currentTurnPlayerId = (gameInfoSnap.data() || {}).turno_attuale_id || null;
+
+  const batch = writeBatch(db);
+
+  batch.update(doc(db, 'giocatori', playerId), {
+    in_partita: false,
+    posizione: 1,
+    domanda_corrente_id: deleteField(),
+    domanda_corrente_testo: deleteField(),
+    domanda_bonus_tipo: deleteField(),
+    updated_at: serverTimestamp()
+  });
+
+  if (currentTurnPlayerId === playerId) {
+    batch.set(gameInfoRef, {
+      turno_attuale_id: activeOrdered.length > 0 ? activeOrdered[0].id : null,
+      updated_at: serverTimestamp()
+    }, { merge: true });
+  }
+
+  await batch.commit();
+  setMessage(`Giocatore ${playerId} tolto dalla partita.`);
 }
 
 async function resetGame() {
@@ -207,7 +269,7 @@ function attachPlayersListener() {
 }
 
 function clearPlayersTable() {
-  tableBody.innerHTML = '<tr><td colspan="8">Nessun dato disponibile.</td></tr>';
+  tableBody.innerHTML = '<tr><td colspan="9">Nessun dato disponibile.</td></tr>';
 }
 
 function renderQuestionsTable(questionDocs) {
@@ -374,14 +436,18 @@ function wireEvents() {
   tableBody.addEventListener('click', async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-    if (target.dataset.action !== 'save-player') return;
+    if (!target.dataset.action) return;
 
     const row = target.closest('tr');
     if (!row) return;
 
     target.setAttribute('disabled', 'true');
     try {
-      await savePlayerFromRow(row);
+      if (target.dataset.action === 'save-player') {
+        await savePlayerFromRow(row);
+      } else if (target.dataset.action === 'remove-player') {
+        await removePlayerFromGame(row.dataset.playerId || '');
+      }
     } catch (error) {
       console.error('Errore aggiornamento giocatore:', error);
       setMessage('Aggiornamento non riuscito. Verifica i permessi admin.', true);
