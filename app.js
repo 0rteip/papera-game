@@ -328,7 +328,23 @@ document.addEventListener('DOMContentLoaded', () => {
       .join('');
   }
 
+  function getWinnerEntry() {
+    return getActivePlayersEntries().find(([, player]) => {
+      const position = Number(player?.posizione) || 1;
+      return position >= totalCells;
+    }) || null;
+  }
+
   function updateTurnUi() {
+    const winnerEntry = getWinnerEntry();
+    if (winnerEntry) {
+      const [winnerId, winner] = winnerEntry;
+      currentPlayerNameEl.textContent = `Ha vinto ${winner?.nome || winnerId}!`;
+      currentPlayerNameEl.style.color = winner?.colore || '#2e7d32';
+      btnRoll.disabled = true;
+      return;
+    }
+
     const turnPlayer = playersById.get(currentTurnPlayerId);
     const isMyTurn = Boolean(currentPlayerId) && currentTurnPlayerId === currentPlayerId;
     const currentPlayer = playersById.get(currentPlayerId);
@@ -496,6 +512,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function movePlayerAndAskQuestion() {
+    if (getWinnerEntry()) {
+      alert('La partita e gia finita. Inizia una nuova partita per continuare.');
+      return;
+    }
+
     const myPlayer = playersById.get(currentPlayerId);
     if (!myPlayer) {
       alert(`Giocatore ${currentPlayerId} non trovato in Firestore.`);
@@ -538,6 +559,17 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       await flashCellTwice(finalPosition);
+    }
+
+    const endingPosition = (bonusResult.bonusType === 'forward' || bonusResult.bonusType === 'backward')
+      ? finalPosition
+      : landedPosition;
+
+    if (endingPosition >= totalCells) {
+      showBonusNotice('Traguardo raggiunto! Hai vinto la partita!');
+      alert('Complimenti! Hai raggiunto il traguardo e vinto la partita.');
+      updateTurnUi();
+      return;
     }
 
     const answeredIds = new Set(Array.isArray(myPlayer.domande_risposte) ? myPlayer.domande_risposte : []);
