@@ -12,6 +12,11 @@
     <h1>🎲 Oca Custom</h1>
     <div class="status-bar">
       <p>Turno attuale: <strong id="current-player-name">Caricamento...</strong></p>
+      <p>Profilo: <strong id="auth-user-name">Non autenticato</strong></p>
+      <div class="auth-controls">
+        <button id="btn-login-google" class="btn-secondary">Entra con Google</button>
+        <button id="btn-logout" class="btn-secondary hidden">Esci</button>
+      </div>
     </div>
   </header>
 
@@ -32,6 +37,6 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

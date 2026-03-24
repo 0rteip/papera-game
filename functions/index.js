@@ -1,0 +1,69 @@
+const admin = require('firebase-admin');
+const nodemailer = require('nodemailer');
+const { defineSecret } = require('firebase-functions/params');
+const { onDocumentUpdated } = require('firebase-functions/v2/firestore');
+const { logger } = require('firebase-functions');
+
+admin.initializeApp();
+const db = admin.firestore();
+
+const SMTP_HOST = defineSecret('SMTP_HOST');
+const SMTP_PORT = defineSecret('SMTP_PORT');
+const SMTP_USER = defineSecret('SMTP_USER');
+const SMTP_PASS = defineSecret('SMTP_PASS');
+const SMTP_SECURE = defineSecret('SMTP_SECURE');
+const MAIL_FROM = defineSecret('MAIL_FROM');
+
+exports.notifyTurnByEmail = onDocumentUpdated({
+  document: 'stato_partita/info_generali',
+  secrets: [SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_SECURE, MAIL_FROM]
+}, async (event) => {
+  const beforeData = event.data.before.data() || {};
+  const afterData = event.data.after.data() || {};
+
+  const beforeTurn = beforeData.turno_attuale_id || null;
+  const nextTurn = afterData.turno_attuale_id || null;
+
+  if (!nextTurn || nextTurn === beforeTurn) {
+    return;
+  }
+
+  try {
+    const playerSnap = await db.collection('giocatori').doc(nextTurn).get();
+    if (!playerSnap.exists) {
+      logger.warn('Giocatore di turno non trovato', { nextTurn });
+      return;
+    }
+
+    const player = playerSnap.data() || {};
+    const recipientEmail = player.email;
+    if (!recipientEmail) {
+      logger.warn('Giocatore senza email, notifica saltata', { nextTurn });
+      return;
+    }
+
+    const playerName = player.nome || 'Giocatore';
+
+    const transporter = nodemailer.createTransport({
+      host: SMTP_HOST.value(),
+      port: Number(SMTP_PORT.value() || 587),
+      secure: String(SMTP_SECURE.value() || 'false').toLowerCase() === 'true',
+      auth: {
+        user: SMTP_USER.value(),
+        pass: SMTP_PASS.value()
+      }
+    });
+
+    await transporter.sendMail({
+      from: MAIL_FROM.value(),
+      to: recipientEmail,
+      subject: 'E il tuo turno su Oca Custom',
+      text: `Ciao ${playerName}, e il tuo turno nel Gioco dell Oca. Apri la partita e tira il dado.`,
+      html: `<p>Ciao <strong>${playerName}</strong>,</p><p>e il tuo turno nel Gioco dell'Oca.</p><p>Apri la partita e tira il dado.</p>`
+    });
+
+    logger.info('Notifica email inviata', { recipientEmail, nextTurn });
+  } catch (error) {
+    logger.error('Errore durante invio email di notifica turno', error);
+  }
+});

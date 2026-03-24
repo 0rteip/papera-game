@@ -99,3 +99,70 @@ body {
   width: 90%; max-width: 500px; text-align: center;
 }
 textarea { width: 100%; margin-bottom: 15px; }
+
+/* --- STILE DELLE PEDINE --- */
+
+/* Contenitore dentro la casella per gestire sovrapposizioni */
+.pawns-container {
+  position: absolute;
+  bottom: 5px;
+  /* In basso */
+  right: 5px;
+  /* A destra */
+  display: flex;
+  flex-wrap: wrap;
+  /* Se ce ne sono tante, vanno a capo */
+  justify-content: flex-end;
+  gap: 2px;
+  /* Spazio tra le pedine */
+  width: 80%;
+  /* Non occupare tutta la casella */
+  pointer-events: none;
+  /* Non intralciano i clic sulla casella */
+}
+
+/* La pedina singola */
+.pawn {
+  width: 14px;
+  /* Dimensioni piccole per mobile */
+  height: 14px;
+  border-radius: 50%;
+  /* Tonda */
+  border: 2px solid white;
+  /* Bordo per staccare dal fondo */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  /* Animazione fluida quando si muove */
+  z-index: 10;
+}
+
+/* Opzionale: Pedina più grande su desktop */
+@media (min-width: 768px) {
+  .pawn {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.status-bar p {
+  margin: 5px 0 0 0;
+  font-size: 1.1rem;
+  /* color: var(--text-dark); */
+  /* Rimuovi questa riga per far funzionare il colore JS */
+}
+
+.auth-controls {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.auth-controls .btn-secondary {
+  width: auto;
+  max-width: none;
+  padding: 10px 16px;
+  font-size: 1rem;
+  border-radius: 12px;
+}

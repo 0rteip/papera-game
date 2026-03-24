@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    match /domande/{questionId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /giocatori/{playerId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == playerId;
+      allow update: if isSignedIn() && request.auth.uid == playerId;
+      allow delete: if false;
+    }
+
+    match /risposte_date/{answerId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.id_giocatore == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /stato_partita/{docId} {
+      allow read: if isSignedIn();
+      allow update: if isSignedIn()
+        && resource.data.turno_attuale_id == request.auth.uid;
+      allow create, delete: if false;
+    }
+
+    // La collection mail viene scritta dal backend (Cloud Functions/Admin SDK).
+    match /mail/{mailId} {
+      allow read, write: if false;
+    }
+  }
+}
