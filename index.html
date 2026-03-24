@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Il Gioco dell'Oca Custom</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="game-header">
+    <h1>🎲 Oca Custom</h1>
+    <div class="status-bar">
+      <p>Turno attuale: <strong id="current-player-name">Caricamento...</strong></p>
+    </div>
+  </header>
+
+  <main>
+    <div id="board" class="board-container">
+      </div>
+  </main>
+
+  <footer class="game-controls">
+    <button id="btn-roll-dice" class="btn-primary" disabled>Tira il Dado</button>
+  </footer>
+
+  <div id="question-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2 id="question-text">Testo della domanda qui...</h2>
+      <textarea id="answer-input" rows="4" placeholder="Scrivi la tua risposta..."></textarea>
+      <button id="btn-submit-answer" class="btn-secondary">Invia Risposta</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
