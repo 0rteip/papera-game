@@ -65,9 +65,9 @@ exports.notifyTurnByEmail = onDocumentUpdated({
     await transporter.sendMail({
       from: MAIL_FROM.value(),
       to: recipientEmail,
-      subject: 'E il tuo turno su tom',
-      text: `Ciao ${playerName}, e il tuo turno nel Gioco dell Oca. Apri la partita e tira il dado.`,
-      html: `<p>Ciao <strong>${playerName}</strong>,</p><p>e il tuo turno nel Gioco dell'Oca.</p><p>Apri la partita e tira il dado.</p>`
+        subject: '🦆 Vai piccola papera, è il tuo turno!',
+      text: `Ciao ${playerName}, so che non stai facendo niente. È il tuo turno. Tira il dado e rispondi!`,
+      html: `<p>Ciao <strong>${playerName}</strong>,</p><p>so che non stai facendo niente. È il tuo turno. Tira il dado e rispondi!</p>`
     });
 
     logger.info('Notifica email inviata', { recipientEmail, nextTurn });

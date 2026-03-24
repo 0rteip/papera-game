@@ -5,7 +5,6 @@ import {
   deleteField,
   doc,
   getDoc,
-  getDocs,
   getFirestore,
   onSnapshot,
   serverTimestamp,
@@ -63,7 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let hasShownPermissionAlert = false;
   let unsubscribePlayers = null;
   let unsubscribeGameInfo = null;
+  let unsubscribeQuestions = null;
   const playersById = new Map();
+  const activeQuestionsCache = [];
   const fallbackColors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'];
   const BONUS_CELLS = new Map([
     [3, { type: 'forward', value: 2, label: '+2' }],
@@ -110,11 +111,17 @@ document.addEventListener('DOMContentLoaded', () => {
       unsubscribeGameInfo = null;
     }
 
+    if (unsubscribeQuestions) {
+      unsubscribeQuestions();
+      unsubscribeQuestions = null;
+    }
+
     currentPlayerId = null;
     currentTurnPlayerId = null;
     currentQuestion = null;
     currentQuestionBonusType = null;
     playersById.clear();
+    activeQuestionsCache.length = 0;
     renderPawns();
     closeQuestionModal();
     updateTurnUi();
@@ -142,8 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const playerSnap = await getDoc(playerRef);
 
     if (!playerSnap.exists()) {
-      const allPlayersSnap = await getDocs(collection(db, 'giocatori'));
-      const nextTurnOrder = allPlayersSnap.size + 1;
+      const nextTurnOrder = Date.now();
 
       await setDoc(playerRef, {
         nome: buildDefaultName(user),
@@ -376,13 +382,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function pickRandomQuestionExcluding(excludedIds) {
-    const questionsSnapshot = await getDocs(collection(db, 'domande'));
     const available = [];
 
-    questionsSnapshot.forEach((questionDoc) => {
-      const data = questionDoc.data() || {};
-      if (!excludedIds.has(questionDoc.id) && data.attiva !== false) {
-        available.push({ id: questionDoc.id, ...questionDoc.data() });
+    activeQuestionsCache.forEach((question) => {
+      if (!excludedIds.has(question.id)) {
+        available.push(question);
       }
     });
 
@@ -613,6 +617,31 @@ document.addEventListener('DOMContentLoaded', () => {
   function attachRealtimeListeners() {
     if (!currentPlayerId) return;
 
+    unsubscribeQuestions = onSnapshot(
+      collection(db, 'domande'),
+      (snapshot) => {
+        activeQuestionsCache.length = 0;
+
+        snapshot.forEach((questionDoc) => {
+          const data = questionDoc.data() || {};
+          if (data.attiva !== false) {
+            activeQuestionsCache.push({
+              id: questionDoc.id,
+              testo: data.testo || ''
+            });
+          }
+        });
+      },
+      (error) => {
+        if (isPermissionDenied(error)) {
+          handlePermissionDenied(error, 'listener domande');
+          return;
+        }
+
+        console.error('Errore listener domande:', error);
+      }
+    );
+
     unsubscribePlayers = onSnapshot(
       collection(db, 'giocatori'),
       (snapshot) => {
@@ -744,7 +773,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         await ensurePlayerProfile(user);
 
-        if (unsubscribePlayers || unsubscribeGameInfo) {
+        if (unsubscribePlayers || unsubscribeGameInfo || unsubscribeQuestions) {
           resetGameStateForLogout();
           currentPlayerId = user.uid;
         }

@@ -91,9 +91,23 @@ service cloud.firestore {
         && request.resource.data.id_domanda.size() > 0
         && request.resource.data.testo_risposta is string
         && request.resource.data.testo_risposta.size() > 0
+        && (!('nome_giocatore' in request.resource.data) || request.resource.data.nome_giocatore is string)
+        && (!('email_giocatore' in request.resource.data) || request.resource.data.email_giocatore == null || request.resource.data.email_giocatore is string)
+        && (!('testo_domanda' in request.resource.data) || request.resource.data.testo_domanda is string)
+        && (!('timestamp' in request.resource.data) || request.resource.data.timestamp is timestamp)
+        && (!('data_risposta' in request.resource.data) || request.resource.data.data_risposta is timestamp)
         && hasOnlyKeys(
           request.resource.data,
-          ['id_giocatore', 'id_domanda', 'testo_risposta', 'data_risposta']
+          [
+            'id_giocatore',
+            'id_domanda',
+            'testo_risposta',
+            'data_risposta',
+            'nome_giocatore',
+            'email_giocatore',
+            'testo_domanda',
+            'timestamp'
+          ]
         );
       allow update, delete: if false;
     }
