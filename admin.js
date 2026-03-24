@@ -227,9 +227,18 @@ function renderQuestionsTable(questionDocs) {
       return `
         <tr data-question-id="${questionDoc.id}">
           <td>${escapeHtml(questionDoc.id)}</td>
-          <td>${text}</td>
-          <td>${isActive ? 'Si' : 'No'}</td>
-          <td><button class="mini-btn btn-danger" data-action="delete-question">Elimina</button></td>
+          <td>
+            <textarea class="question-edit-input" data-field="testo">${text}</textarea>
+          </td>
+          <td>
+            <input type="checkbox" data-field="attiva" ${isActive ? 'checked' : ''} />
+          </td>
+          <td>
+            <div class="question-actions">
+              <button class="mini-btn" data-action="save-question">Salva</button>
+              <button class="mini-btn btn-danger" data-action="delete-question">Elimina</button>
+            </div>
+          </td>
         </tr>
       `;
     })
@@ -284,6 +293,33 @@ async function deleteQuestion(questionId) {
 
   await deleteDoc(doc(db, 'domande', questionId));
   setMessage('Domanda eliminata.');
+}
+
+async function saveQuestionFromRow(row) {
+  const questionId = row.dataset.questionId;
+  if (!questionId) return;
+
+  const textInput = row.querySelector('textarea[data-field="testo"]');
+  const activeInput = row.querySelector('input[data-field="attiva"]');
+
+  if (!textInput || !activeInput) return;
+
+  const text = textInput.value.trim();
+  const isActive = activeInput.checked;
+
+  if (!text) {
+    setMessage('Il testo della domanda non puo essere vuoto.', true);
+    return;
+  }
+
+  await updateDoc(doc(db, 'domande', questionId), {
+    testo: text,
+    attiva: isActive,
+    updated_at: serverTimestamp(),
+    updated_by: currentUser ? currentUser.uid : null
+  });
+
+  setMessage('Domanda aggiornata.');
 }
 
 function wireEvents() {
@@ -357,7 +393,7 @@ function wireEvents() {
   questionsTableBody.addEventListener('click', async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-    if (target.dataset.action !== 'delete-question') return;
+    if (!target.dataset.action) return;
 
     const row = target.closest('tr');
     if (!row) return;
@@ -367,10 +403,14 @@ function wireEvents() {
 
     target.setAttribute('disabled', 'true');
     try {
-      await deleteQuestion(questionId);
+      if (target.dataset.action === 'save-question') {
+        await saveQuestionFromRow(row);
+      } else if (target.dataset.action === 'delete-question') {
+        await deleteQuestion(questionId);
+      }
     } catch (error) {
-      console.error('Errore eliminazione domanda:', error);
-      setMessage('Eliminazione domanda non riuscita.', true);
+      console.error('Errore operazione domanda:', error);
+      setMessage('Operazione sulla domanda non riuscita.', true);
     } finally {
       target.removeAttribute('disabled');
     }

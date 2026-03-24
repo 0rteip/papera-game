@@ -316,6 +316,19 @@ textarea { width: 100%; margin-bottom: 15px; }
   margin: 0 0 10px;
 }
 
+.question-edit-input {
+  width: 100%;
+  min-height: 64px;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.question-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .dice-overlay {
   position: fixed;
   inset: 0;
