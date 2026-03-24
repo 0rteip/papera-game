@@ -578,7 +578,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const shouldPlayAgain = (player.domanda_bonus_tipo || currentQuestionBonusType) === 'reroll';
+    const bonusTypeForAnswer = currentQuestionBonusType || player.domanda_bonus_tipo || null;
+    const shouldPlayAgain = bonusTypeForAnswer === 'reroll';
 
     isSubmittingAnswer = true;
     btnSubmitAnswer.disabled = true;
@@ -602,13 +603,19 @@ document.addEventListener('DOMContentLoaded', () => {
         updated_at: serverTimestamp()
       });
 
-      await updateDoc(doc(db, 'stato_partita', 'info_generali'), {
-        turno_attuale_id: shouldPlayAgain ? currentPlayerId : getNextPlayerId()
-      });
+      if (shouldPlayAgain) {
+        currentTurnPlayerId = currentPlayerId;
+        showBonusNotice('Casella Ancora: puoi tirare di nuovo!');
+      } else {
+        await updateDoc(doc(db, 'stato_partita', 'info_generali'), {
+          turno_attuale_id: getNextPlayerId()
+        });
+      }
 
       currentQuestion = null;
       currentQuestionBonusType = null;
       closeQuestionModal();
+      updateTurnUi();
     } catch (error) {
       if (isPermissionDenied(error)) {
         handlePermissionDenied(error, 'salvataggio risposta');

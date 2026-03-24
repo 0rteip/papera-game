@@ -67,7 +67,7 @@ exports.notifyTurnByEmail = onDocumentUpdated({
       to: recipientEmail,
         subject: '🦆 Vai piccola papera, è il tuo turno!',
       text: `Ciao ${playerName}, so che non stai facendo niente. È il tuo turno. Tira il dado e rispondi!`,
-      html: `<p>Ciao <strong>${playerName}</strong>,</p><p>so che non stai facendo niente. È il tuo turno. Tira il dado e rispondi!</p>`
+        html: `<p>Quack <strong>${playerName}</strong>,</p><p>smettila di sguazzare nello stagno senza far nulla! È il tuo turno.</p><p>Prendi il dado con le tue ali, lancialo e starnazza la risposta prima di perdere le piume!</p>`
     });
 
     logger.info('Notifica email inviata', { recipientEmail, nextTurn });
