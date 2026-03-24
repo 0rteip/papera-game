@@ -2,6 +2,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/fireba
 import {
   arrayUnion,
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -262,6 +263,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateTurnUi() {
     const turnPlayer = playersById.get(currentTurnPlayerId);
     const isMyTurn = Boolean(currentPlayerId) && currentTurnPlayerId === currentPlayerId;
+    const currentPlayer = playersById.get(currentPlayerId);
+    const hasPendingQuestion = Boolean(currentPlayer?.domanda_corrente_id);
 
     if (!currentPlayerId) {
       currentPlayerNameEl.textContent = 'Accedi con Google per giocare';
@@ -281,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
       currentPlayerNameEl.style.color = '#333333';
     }
 
-    btnRoll.disabled = !isMyTurn;
+    btnRoll.disabled = !isMyTurn || hasPendingQuestion;
   }
 
   function getNextPlayerId() {
@@ -315,7 +318,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const available = [];
 
     questionsSnapshot.forEach((questionDoc) => {
-      if (!excludedIds.has(questionDoc.id)) {
+      const data = questionDoc.data() || {};
+      if (!excludedIds.has(questionDoc.id) && data.attiva !== false) {
         available.push({ id: questionDoc.id, ...questionDoc.data() });
       }
     });
@@ -371,6 +375,14 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    if (myPlayer.domanda_corrente_id) {
+      openQuestionModal({
+        id: myPlayer.domanda_corrente_id,
+        testo: myPlayer.domanda_corrente_testo || 'Domanda senza testo'
+      });
+      return;
+    }
+
     const diceValue = Math.floor(Math.random() * 6) + 1;
     const currentPosition = Number(myPlayer.posizione) || 1;
     const newPosition = Math.min(currentPosition + diceValue, totalCells);
@@ -391,6 +403,12 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       return;
     }
+
+    await updateDoc(doc(db, 'giocatori', currentPlayerId), {
+      domanda_corrente_id: selectedQuestion.id,
+      domanda_corrente_testo: selectedQuestion.testo || '',
+      updated_at: serverTimestamp()
+    });
 
     await sleep(450);
 
@@ -428,6 +446,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       await updateDoc(doc(db, 'giocatori', currentPlayerId), {
         domande_risposte: arrayUnion(currentQuestion.id),
+        domanda_corrente_id: deleteField(),
+        domanda_corrente_testo: deleteField(),
         updated_at: serverTimestamp()
       });
 
@@ -465,6 +485,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (boardCreatedForCells !== totalCells) {
           createBoard(totalCells);
+        }
+
+        const me = playersById.get(currentPlayerId);
+        if (me?.domanda_corrente_id) {
+          if (!currentQuestion || currentQuestion.id !== me.domanda_corrente_id) {
+            openQuestionModal({
+              id: me.domanda_corrente_id,
+              testo: me.domanda_corrente_testo || 'Domanda senza testo'
+            });
+          }
+        } else if (currentQuestion && currentQuestion.id) {
+          closeQuestionModal();
+          currentQuestion = null;
         }
 
         renderPawns();

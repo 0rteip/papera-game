@@ -10,6 +10,18 @@ Gioco della papera asincrono con frontend statico (GitHub Pages) e backend Fireb
 - Le risposte vengono salvate in `risposte_date`.
 - Al cambio turno, una Cloud Function invia email via SMTP (senza estensioni).
 - Pannello admin su `admin.html` per modificare giocatori attivi e resettare la partita.
+- Pannello admin con gestione domande (aggiunta/eliminazione).
+
+## Struttura domande
+
+- Collection: `domande`
+- Ogni documento domanda contiene:
+  - `testo` (string)
+  - `attiva` (boolean, default `true`)
+  - `created_at` (timestamp)
+  - `created_by` (uid admin)
+
+Il gioco estrae solo domande con `attiva != false` e non ancora usate dal giocatore corrente.
 
 ## Setup Firebase
 
@@ -57,6 +69,13 @@ Gioco della papera asincrono con frontend statico (GitHub Pages) e backend Fireb
 
 Usa un server statico locale (es. Live Server in VS Code) e apri `index.html`.
 Per il pannello admin apri `admin.html`.
+
+## Aggiungere nuove domande facilmente
+
+1. Entra su `admin.html` con account admin.
+1. Nella sezione Gestione Domande scrivi il testo nel box.
+1. Clicca `Aggiungi Domanda`.
+1. La domanda appare subito nella tabella (realtime).
 
 ## Note su sicurezza
 

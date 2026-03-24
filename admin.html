@@ -45,6 +45,27 @@
         <tbody id="players-table-body"></tbody>
       </table>
     </div>
+
+    <section class="admin-questions">
+      <h2>Gestione Domande</h2>
+      <div class="admin-question-form">
+        <textarea id="question-text-input" rows="3" placeholder="Scrivi una nuova domanda..."></textarea>
+        <button id="btn-add-question" class="btn-secondary" disabled>Aggiungi Domanda</button>
+      </div>
+      <div class="players-table-wrap">
+        <table class="players-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Testo</th>
+              <th>Attiva</th>
+              <th>Azione</th>
+            </tr>
+          </thead>
+          <tbody id="questions-table-body"></tbody>
+        </table>
+      </div>
+    </section>
   </main>
 
   <script type="module" src="admin.js"></script>

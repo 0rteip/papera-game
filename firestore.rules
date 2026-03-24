@@ -13,7 +13,7 @@ service cloud.firestore {
 
     match /domande/{questionId} {
       allow read: if isSignedIn();
-      allow write: if false;
+      allow create, update, delete: if isAdmin();
     }
 
     match /giocatori/{playerId} {

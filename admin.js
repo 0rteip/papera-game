@@ -1,6 +1,8 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import {
+  addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -40,11 +42,15 @@ const btnLogin = document.getElementById('admin-btn-login');
 const btnLogout = document.getElementById('admin-btn-logout');
 const btnRefreshPlayers = document.getElementById('btn-refresh-players');
 const btnResetGame = document.getElementById('btn-reset-game');
+const btnAddQuestion = document.getElementById('btn-add-question');
+const questionTextInput = document.getElementById('question-text-input');
 const tableBody = document.getElementById('players-table-body');
+const questionsTableBody = document.getElementById('questions-table-body');
 
 let currentUser = null;
 let canManage = false;
 let unsubscribePlayers = null;
+let unsubscribeQuestions = null;
 
 function setMessage(message, isError = false) {
   adminMessageEl.textContent = message;
@@ -63,6 +69,7 @@ function escapeHtml(raw) {
 function setControlsEnabled(enabled) {
   btnRefreshPlayers.disabled = !enabled;
   btnResetGame.disabled = !enabled;
+  btnAddQuestion.disabled = !enabled;
 }
 
 async function isCurrentUserAdmin(uid) {
@@ -203,6 +210,82 @@ function clearPlayersTable() {
   tableBody.innerHTML = '<tr><td colspan="8">Nessun dato disponibile.</td></tr>';
 }
 
+function renderQuestionsTable(questionDocs) {
+  if (!questionsTableBody) return;
+
+  if (questionDocs.length === 0) {
+    questionsTableBody.innerHTML = '<tr><td colspan="4">Nessuna domanda presente.</td></tr>';
+    return;
+  }
+
+  questionsTableBody.innerHTML = questionDocs
+    .map((questionDoc) => {
+      const data = questionDoc.data() || {};
+      const text = escapeHtml(data.testo || '');
+      const isActive = data.attiva !== false;
+
+      return `
+        <tr data-question-id="${questionDoc.id}">
+          <td>${escapeHtml(questionDoc.id)}</td>
+          <td>${text}</td>
+          <td>${isActive ? 'Si' : 'No'}</td>
+          <td><button class="mini-btn btn-danger" data-action="delete-question">Elimina</button></td>
+        </tr>
+      `;
+    })
+    .join('');
+}
+
+function clearQuestionsTable() {
+  if (!questionsTableBody) return;
+  questionsTableBody.innerHTML = '<tr><td colspan="4">Nessun dato disponibile.</td></tr>';
+}
+
+function attachQuestionsListener() {
+  if (unsubscribeQuestions) {
+    unsubscribeQuestions();
+    unsubscribeQuestions = null;
+  }
+
+  unsubscribeQuestions = onSnapshot(collection(db, 'domande'), (snapshot) => {
+    const docs = snapshot.docs.slice().sort((a, b) => {
+      const textA = String((a.data() || {}).testo || '');
+      const textB = String((b.data() || {}).testo || '');
+      return textA.localeCompare(textB);
+    });
+    renderQuestionsTable(docs);
+  }, (error) => {
+    console.error('Errore listener domande:', error);
+    setMessage('Errore caricamento domande.', true);
+  });
+}
+
+async function addQuestion() {
+  const text = questionTextInput.value.trim();
+  if (!text) {
+    setMessage('Scrivi il testo della domanda.', true);
+    return;
+  }
+
+  await addDoc(collection(db, 'domande'), {
+    testo: text,
+    attiva: true,
+    created_at: serverTimestamp(),
+    created_by: currentUser ? currentUser.uid : null
+  });
+
+  questionTextInput.value = '';
+  setMessage('Domanda aggiunta.');
+}
+
+async function deleteQuestion(questionId) {
+  const ok = window.confirm('Confermi eliminazione domanda?');
+  if (!ok) return;
+
+  await deleteDoc(doc(db, 'domande', questionId));
+  setMessage('Domanda eliminata.');
+}
+
 function wireEvents() {
   btnLogin.addEventListener('click', async () => {
     try {
@@ -243,6 +326,15 @@ function wireEvents() {
     }
   });
 
+  btnAddQuestion.addEventListener('click', async () => {
+    try {
+      await addQuestion();
+    } catch (error) {
+      console.error('Errore aggiunta domanda:', error);
+      setMessage('Aggiunta domanda non riuscita. Verifica i permessi admin.', true);
+    }
+  });
+
   tableBody.addEventListener('click', async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
@@ -261,6 +353,28 @@ function wireEvents() {
       target.removeAttribute('disabled');
     }
   });
+
+  questionsTableBody.addEventListener('click', async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.dataset.action !== 'delete-question') return;
+
+    const row = target.closest('tr');
+    if (!row) return;
+
+    const questionId = row.dataset.questionId;
+    if (!questionId) return;
+
+    target.setAttribute('disabled', 'true');
+    try {
+      await deleteQuestion(questionId);
+    } catch (error) {
+      console.error('Errore eliminazione domanda:', error);
+      setMessage('Eliminazione domanda non riuscita.', true);
+    } finally {
+      target.removeAttribute('disabled');
+    }
+  });
 }
 
 function attachAuthListener() {
@@ -274,10 +388,15 @@ function attachAuthListener() {
       btnLogout.classList.add('hidden');
       setControlsEnabled(false);
       clearPlayersTable();
+      clearQuestionsTable();
       setMessage('Accedi con un account admin.');
       if (unsubscribePlayers) {
         unsubscribePlayers();
         unsubscribePlayers = null;
+      }
+      if (unsubscribeQuestions) {
+        unsubscribeQuestions();
+        unsubscribeQuestions = null;
       }
       return;
     }
@@ -292,10 +411,15 @@ function attachAuthListener() {
         adminRoleStatusEl.textContent = 'Utente non admin';
         setControlsEnabled(false);
         clearPlayersTable();
+        clearQuestionsTable();
         setMessage('Questo account non ha privilegi admin. Crea il doc admins/{uid} su Firestore.', true);
         if (unsubscribePlayers) {
           unsubscribePlayers();
           unsubscribePlayers = null;
+        }
+        if (unsubscribeQuestions) {
+          unsubscribeQuestions();
+          unsubscribeQuestions = null;
         }
         return;
       }
@@ -304,6 +428,7 @@ function attachAuthListener() {
       setControlsEnabled(true);
       setMessage('Pannello pronto. Puoi modificare i giocatori e resettare la partita.');
       attachPlayersListener();
+      attachQuestionsListener();
     } catch (error) {
       console.error('Errore verifica ruolo admin:', error);
       adminRoleStatusEl.textContent = 'Errore verifica ruolo';
