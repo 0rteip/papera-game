@@ -34,6 +34,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const diceOverlayEl = document.getElementById('dice-result-overlay');
   const diceResultValueEl = document.getElementById('dice-result-value');
   const bonusEventTextEl = document.getElementById('bonus-event-text');
+  const gameOverBannerEl = document.getElementById('game-over-banner');
+  const gameOverConfettiEl = document.getElementById('game-over-confetti');
+  const gameOverTitleEl = document.getElementById('game-over-title');
+  const gameOverSubtitleEl = document.getElementById('game-over-subtitle');
+  const btnGameOverClose = document.getElementById('btn-game-over-close');
 
 
   const firebaseConfig = {
@@ -58,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentTurnPlayerId = null;
   let currentQuestion = null;
   let currentQuestionBonusType = null;
+  let gameOverWinnerId = null;
   let isSubmittingAnswer = false;
   let hasShownPermissionAlert = false;
   let unsubscribePlayers = null;
@@ -120,8 +126,10 @@ document.addEventListener('DOMContentLoaded', () => {
     currentTurnPlayerId = null;
     currentQuestion = null;
     currentQuestionBonusType = null;
+    gameOverWinnerId = null;
     playersById.clear();
     activeQuestionsCache.length = 0;
+    hideGameOverBanner();
     renderPawns();
     closeQuestionModal();
     updateTurnUi();
@@ -342,7 +350,16 @@ document.addEventListener('DOMContentLoaded', () => {
       currentPlayerNameEl.textContent = `Ha vinto ${winner?.nome || winnerId}!`;
       currentPlayerNameEl.style.color = winner?.colore || '#2e7d32';
       btnRoll.disabled = true;
+      if (gameOverWinnerId !== winnerId) {
+        gameOverWinnerId = winnerId;
+        showGameOverBanner(winnerId, winner);
+      }
       return;
+    }
+
+    if (gameOverWinnerId !== null) {
+      gameOverWinnerId = null;
+      hideGameOverBanner();
     }
 
     const turnPlayer = playersById.get(currentTurnPlayerId);
@@ -436,6 +453,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 2200);
   }
 
+  function hideGameOverBanner() {
+    if (!gameOverBannerEl) return;
+    gameOverBannerEl.classList.add('hidden');
+  }
+
+  function spawnConfettiBurst() {
+    if (!gameOverConfettiEl) return;
+
+    const colors = ['#ffd54f', '#29b6f6', '#ef5350', '#66bb6a', '#ab47bc', '#ffa726'];
+    const pieces = 44;
+    gameOverConfettiEl.innerHTML = '';
+
+    for (let i = 0; i < pieces; i++) {
+      const piece = document.createElement('span');
+      piece.className = 'confetti-piece';
+      piece.style.left = `${Math.random() * 100}%`;
+      piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+      piece.style.setProperty('--drift', `${(Math.random() - 0.5) * 260}px`);
+      piece.style.setProperty('--duration', `${1700 + Math.random() * 1900}ms`);
+      piece.style.animationDelay = `${Math.random() * 350}ms`;
+      piece.style.transform = `rotate(${Math.random() * 360}deg)`;
+      gameOverConfettiEl.appendChild(piece);
+    }
+  }
+
+  function showGameOverBanner(winnerId, winnerData) {
+    if (!gameOverBannerEl) return;
+
+    const winnerName = winnerData?.nome || winnerId || 'Una papera';
+
+    if (gameOverTitleEl) {
+      gameOverTitleEl.textContent = `${winnerName} ha vinto!`;
+    }
+
+    if (gameOverSubtitleEl) {
+      gameOverSubtitleEl.textContent = 'La corsa e finita: traguardo raggiunto. Complimenti!';
+    }
+
+    gameOverBannerEl.classList.remove('hidden');
+    spawnConfettiBurst();
+  }
+
   function applyBonus(position) {
     const bonus = BONUS_CELLS.get(position);
     if (!bonus) {
@@ -513,7 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function movePlayerAndAskQuestion() {
     if (getWinnerEntry()) {
-      alert('La partita e gia finita. Inizia una nuova partita per continuare.');
+      showBonusNotice('La partita e gia finita.');
       return;
     }
 
@@ -567,7 +626,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (endingPosition >= totalCells) {
       showBonusNotice('Traguardo raggiunto! Hai vinto la partita!');
-      alert('Complimenti! Hai raggiunto il traguardo e vinto la partita.');
       updateTurnUi();
       return;
     }
@@ -801,6 +859,12 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('Logout non riuscito. Riprova.');
       }
     });
+
+    if (btnGameOverClose) {
+      btnGameOverClose.addEventListener('click', () => {
+        hideGameOverBanner();
+      });
+    }
   }
 
   function attachAuthListener() {

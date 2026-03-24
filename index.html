@@ -39,7 +39,7 @@
     <div id="board" class="board-container">
       </div>
     <section class="players-legend" aria-label="Legenda giocatori">
-      <h2>Legenda Pedine</h2>
+      <h2>Paperelle</h2>
       <div id="players-legend-list" class="players-legend-list"></div>
       <p id="bonus-event-text" class="bonus-event hidden"></p>
     </section>
@@ -61,6 +61,16 @@
     <div class="dice-card">
       <p>Hai tirato</p>
       <div id="dice-result-value" class="dice-value">-</div>
+    </div>
+  </div>
+
+  <div id="game-over-banner" class="game-over-overlay hidden" aria-live="assertive" aria-modal="true" role="dialog">
+    <div id="game-over-confetti" class="confetti-layer" aria-hidden="true"></div>
+    <div class="game-over-card">
+      <p class="game-over-eyebrow">Partita conclusa</p>
+      <h2 id="game-over-title">Vittoria!</h2>
+      <p id="game-over-subtitle" class="game-over-subtitle">Una papera ha raggiunto il traguardo.</p>
+      <button id="btn-game-over-close" class="btn-secondary">Chiudi Banner</button>
     </div>
   </div>
 

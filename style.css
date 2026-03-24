@@ -863,3 +863,118 @@ textarea { width: 100%; margin-bottom: 15px; }
     opacity: 1;
   }
 }
+
+.game-over-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 28%),
+    radial-gradient(circle at 90% 90%, rgba(255, 240, 176, 0.2) 0%, rgba(255, 240, 176, 0) 35%),
+    rgba(15, 26, 24, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.game-over-card {
+  position: relative;
+  z-index: 2;
+  width: min(92vw, 560px);
+  text-align: center;
+  padding: 24px 20px 20px;
+  border-radius: 20px;
+  border: 2px solid rgba(255, 236, 145, 0.9);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.75) 46%, rgba(255, 255, 255, 0.9) 100%),
+    linear-gradient(180deg, #fff7d8 0%, #ffe28d 100%);
+  box-shadow:
+    0 24px 48px rgba(0, 0, 0, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  animation: game-over-pop 520ms cubic-bezier(0.2, 0.84, 0.22, 1);
+}
+
+.game-over-eyebrow {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6e5316;
+}
+
+#game-over-title {
+  margin: 8px 0 6px;
+  font-family: 'Baloo 2', 'Trebuchet MS', sans-serif;
+  font-size: clamp(1.9rem, 4.8vw, 2.6rem);
+  line-height: 1.05;
+  color: #4f3905;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.7);
+}
+
+.game-over-subtitle {
+  margin: 0 0 14px;
+  font-size: 1rem;
+  color: #5a4a16;
+}
+
+.game-over-card .btn-secondary {
+  width: auto;
+  max-width: none;
+  padding: 10px 16px;
+  border-radius: 12px;
+}
+
+.confetti-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.confetti-piece {
+  --drift: 0px;
+  --duration: 2200ms;
+  position: absolute;
+  top: -14%;
+  width: 10px;
+  height: 16px;
+  border-radius: 2px;
+  opacity: 0.95;
+  transform: translate3d(0, 0, 0) rotate(0deg);
+  animation: confetti-fall var(--duration) linear forwards;
+}
+
+@keyframes game-over-pop {
+  0% {
+    transform: translateY(14px) scale(0.92);
+    opacity: 0;
+  }
+
+  70% {
+    transform: translateY(-3px) scale(1.02);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(0, -8%, 0) rotate(0deg);
+    opacity: 0;
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate3d(var(--drift), 122vh, 0) rotate(700deg);
+    opacity: 0;
+  }
+}
