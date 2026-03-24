@@ -127,6 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
         posizione: 1,
         colore: pickColorForUid(user.uid),
         ordine_turno: nextTurnOrder,
+        in_partita: true,
         domande_risposte: [],
         created_at: serverTimestamp(),
         updated_at: serverTimestamp()
@@ -139,6 +140,10 @@ document.addEventListener('DOMContentLoaded', () => {
       email: user.email || null,
       updated_at: serverTimestamp()
     }, { merge: true });
+  }
+
+  function getActivePlayersEntries() {
+    return Array.from(playersById.entries()).filter(([, player]) => player?.in_partita !== false);
   }
 
   function createBoard(cellsCount) {
@@ -165,11 +170,33 @@ document.addEventListener('DOMContentLoaded', () => {
     boardCreatedForCells = cellsCount;
   }
 
+  function getPlayerInitials(name, fallbackId) {
+    const source = String(name || '').trim();
+
+    if (!source) {
+      return String(fallbackId || '?').slice(0, 2).toUpperCase();
+    }
+
+    const tokens = source
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2);
+
+    if (tokens.length === 0) {
+      return String(fallbackId || '?').slice(0, 2).toUpperCase();
+    }
+
+    return tokens
+      .map((token) => token[0])
+      .join('')
+      .toUpperCase();
+  }
+
   function renderPawns() {
     const existingPawns = document.querySelectorAll('.pawn');
     existingPawns.forEach((pawn) => pawn.remove());
 
-    playersById.forEach((player, playerId) => {
+    getActivePlayersEntries().forEach(([playerId, player]) => {
       const rawPosition = Number(player.posizione) || 1;
       const clampedPosition = Math.max(1, Math.min(rawPosition, totalCells));
       const container = document.getElementById(`pawns-container-${clampedPosition}`);
@@ -181,6 +208,8 @@ document.addEventListener('DOMContentLoaded', () => {
       pawnDiv.id = `pawn-${playerId}`;
       pawnDiv.style.backgroundColor = player.colore || '#666666';
       pawnDiv.title = player.nome || playerId;
+      pawnDiv.textContent = getPlayerInitials(player.nome, playerId);
+      pawnDiv.setAttribute('aria-label', `Pedina ${player.nome || playerId}`);
       container.appendChild(pawnDiv);
     });
   }
@@ -212,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getNextPlayerId() {
     const orderedIds = Array
-      .from(playersById.entries())
+      .from(getActivePlayersEntries())
       .sort((a, b) => {
         const playerA = a[1] || {};
         const playerB = b[1] || {};

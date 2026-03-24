@@ -9,6 +9,7 @@ Gioco dell'Oca asincrono con frontend statico (GitHub Pages) e backend Firebase.
 - Il dado e abilitato solo quando `turno_attuale_id` coincide con l'uid autenticato.
 - Le risposte vengono salvate in `risposte_date`.
 - Al cambio turno, una Cloud Function invia email via SMTP (senza estensioni).
+- Pannello admin su `admin.html` per modificare giocatori attivi e resettare la partita.
 
 ## Setup Firebase
 
@@ -20,6 +21,12 @@ Gioco dell'Oca asincrono con frontend statico (GitHub Pages) e backend Firebase.
 
 - File locale: [firestore.rules](firestore.rules)
 - Deploy: `firebase deploy --only firestore:rules`
+
+1. Abilita almeno un admin:
+
+- In Firestore crea manualmente il documento `admins/{uid}` del tuo account Google.
+- Esempio: collection `admins`, doc id uguale al tuo uid, campo `enabled: true`.
+- L'admin puo aggiornare tutti i giocatori e resettare `stato_partita`.
 
 1. Configura SMTP gratuito (senza estensioni):
 
@@ -49,6 +56,7 @@ Gioco dell'Oca asincrono con frontend statico (GitHub Pages) e backend Firebase.
 ## Avvio locale
 
 Usa un server statico locale (es. Live Server in VS Code) e apri `index.html`.
+Per il pannello admin apri `admin.html`.
 
 ## Note su sicurezza
 

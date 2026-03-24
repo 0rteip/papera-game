@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Oca Custom</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="game-header">
+    <h1>Pannello Admin</h1>
+    <div class="status-bar">
+      <p>Profilo: <strong id="admin-auth-user">Non autenticato</strong></p>
+      <p>Ruolo: <strong id="admin-role-status">Verifica in corso...</strong></p>
+      <div class="auth-controls">
+        <button id="admin-btn-login" class="btn-secondary">Entra con Google</button>
+        <button id="admin-btn-logout" class="btn-secondary hidden">Esci</button>
+        <a href="index.html" class="btn-secondary admin-link">Torna al gioco</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <div class="admin-actions">
+      <button id="btn-refresh-players" class="btn-secondary" disabled>Aggiorna Lista</button>
+      <button id="btn-reset-game" class="btn-secondary btn-danger" disabled>Reset Partita</button>
+    </div>
+
+    <p id="admin-message" class="admin-status">Accedi per gestire la partita.</p>
+
+    <div class="players-table-wrap">
+      <table class="players-table">
+        <thead>
+          <tr>
+            <th>UID</th>
+            <th>Nome</th>
+            <th>Email</th>
+            <th>Colore</th>
+            <th>Ordine</th>
+            <th>Attivo</th>
+            <th>Posizione</th>
+            <th>Salva</th>
+          </tr>
+        </thead>
+        <tbody id="players-table-body"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script type="module" src="admin.js"></script>
+</body>
+</html>
