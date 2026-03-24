@@ -488,7 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (gameOverSubtitleEl) {
-      gameOverSubtitleEl.textContent = 'La corsa e finita: traguardo raggiunto. Complimenti!';
+      gameOverSubtitleEl.textContent = 'La papera più veloce!';
     }
 
     gameOverBannerEl.classList.remove('hidden');
