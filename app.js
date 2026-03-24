@@ -591,12 +591,13 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    const wasPendingReroll = currentQuestionBonusType === 'pending_reroll';
     const diceValue = Math.floor(Math.random() * 6) + 1;
     const currentPosition = Number(myPlayer.posizione) || 1;
     const landedPosition = Math.min(currentPosition + diceValue, totalCells);
     const bonusResult = applyBonus(landedPosition);
     const finalPosition = bonusResult.finalPosition;
-    currentQuestionBonusType = bonusResult.bonusType === 'reroll' ? 'reroll' : null;
+    currentQuestionBonusType = null;
 
     await flashCellTwice(currentPosition);
     await showDiceRoll(diceValue);
@@ -626,6 +627,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (endingPosition >= totalCells) {
       showBonusNotice('Traguardo raggiunto! Hai vinto la partita!');
+      currentQuestionBonusType = null;
+      updateTurnUi();
+      return;
+    }
+
+    if (bonusResult.bonusType === 'reroll') {
+      currentQuestionBonusType = 'pending_reroll';
+      showBonusNotice(
+        wasPendingReroll
+          ? 'Ancora! Niente domanda: ritira di nuovo finche esci da una casella Ancora.'
+          : 'Casella Ancora! Rilancia il dado: la domanda arrivera dopo il prossimo lancio.'
+      );
       updateTurnUi();
       return;
     }
@@ -638,13 +651,14 @@ document.addEventListener('DOMContentLoaded', () => {
       await updateDoc(doc(db, 'stato_partita', 'info_generali'), {
         turno_attuale_id: getNextPlayerId()
       });
+      currentQuestionBonusType = null;
       return;
     }
 
     await updateDoc(doc(db, 'giocatori', currentPlayerId), {
       domanda_corrente_id: selectedQuestion.id,
       domanda_corrente_testo: selectedQuestion.testo || '',
-      domanda_bonus_tipo: currentQuestionBonusType || deleteField(),
+      domanda_bonus_tipo: deleteField(),
       updated_at: serverTimestamp()
     });
 
@@ -668,9 +682,6 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const bonusTypeForAnswer = currentQuestionBonusType || player.domanda_bonus_tipo || null;
-    const shouldPlayAgain = bonusTypeForAnswer === 'reroll';
-
     isSubmittingAnswer = true;
     btnSubmitAnswer.disabled = true;
 
@@ -693,14 +704,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updated_at: serverTimestamp()
       });
 
-      if (shouldPlayAgain) {
-        currentTurnPlayerId = currentPlayerId;
-        showBonusNotice('Casella Ancora: puoi tirare di nuovo!');
-      } else {
-        await updateDoc(doc(db, 'stato_partita', 'info_generali'), {
-          turno_attuale_id: getNextPlayerId()
-        });
-      }
+      await updateDoc(doc(db, 'stato_partita', 'info_generali'), {
+        turno_attuale_id: getNextPlayerId()
+      });
 
       currentQuestion = null;
       currentQuestionBonusType = null;
