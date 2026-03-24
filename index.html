@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Il Gioco della Papera</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@500;700&display=swap" rel="stylesheet">
   <link rel="icon" href="favicon.ico" sizes="any">
   <link rel="shortcut icon" href="favicon.ico">
   <link rel="stylesheet" href="style.css">
@@ -11,14 +14,23 @@
 <body>
 
   <header class="game-header">
+    <a href="casa.html" class="btn-secondary admin-link admin-link-top">Vai a Casa di Nonna Papera</a>
     <h1>🎲 Il gioco della Papera</h1>
-    <div class="status-bar">
-      <p>Turno attuale: <strong id="current-player-name">Caricamento...</strong></p>
-      <p>Profilo: <strong id="auth-user-name">Non autenticato</strong></p>
-      <div class="auth-controls">
+    <div class="status-bar game-status-bar">
+      <div class="game-status-grid">
+        <div class="game-status-item">
+          <span class="status-label">Turno attuale</span>
+          <strong id="current-player-name">Caricamento...</strong>
+        </div>
+        <div class="game-status-item">
+          <span class="status-label">Profilo</span>
+          <strong id="auth-user-name">Non autenticato</strong>
+        </div>
+      </div>
+      <div class="auth-controls game-auth-controls">
         <button id="btn-login-google" class="btn-secondary">Entra con Google</button>
+        <span class="auth-controls-spacer" aria-hidden="true"></span>
         <button id="btn-logout" class="btn-secondary hidden">Esci</button>
-        <a href="admin.html" class="btn-secondary admin-link">Admin</a>
       </div>
     </div>
   </header>

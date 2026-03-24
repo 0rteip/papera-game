@@ -47,6 +47,8 @@ const btnAddQuestion = document.getElementById('btn-add-question');
 const questionTextInput = document.getElementById('question-text-input');
 const tableBody = document.getElementById('players-table-body');
 const questionsTableBody = document.getElementById('questions-table-body');
+const adminRealContentEl = document.getElementById('admin-real-content');
+const nonAdminCoverEl = document.getElementById('non-admin-cover');
 
 let currentUser = null;
 let canManage = false;
@@ -71,6 +73,16 @@ function setControlsEnabled(enabled) {
   btnRefreshPlayers.disabled = !enabled;
   btnResetGame.disabled = !enabled;
   btnAddQuestion.disabled = !enabled;
+}
+
+function setAdminPanelVisibility(isAdmin) {
+  if (adminRealContentEl) {
+    adminRealContentEl.classList.toggle('hidden', !isAdmin);
+  }
+
+  if (nonAdminCoverEl) {
+    nonAdminCoverEl.classList.toggle('hidden', isAdmin);
+  }
 }
 
 async function isCurrentUserAdmin(uid) {
@@ -488,14 +500,16 @@ function attachAuthListener() {
     currentUser = user;
 
     if (!user) {
+      canManage = false;
       adminAuthUserEl.textContent = 'Non autenticato';
       adminRoleStatusEl.textContent = 'Accesso negato';
       btnLogin.classList.remove('hidden');
       btnLogout.classList.add('hidden');
+      setAdminPanelVisibility(false);
       setControlsEnabled(false);
       clearPlayersTable();
       clearQuestionsTable();
-      setMessage('Accedi con un account admin.');
+      setMessage('Nonna Papera sta scegliendo chi puo entrare nella dispensa...');
       if (unsubscribePlayers) {
         unsubscribePlayers();
         unsubscribePlayers = null;
@@ -514,11 +528,12 @@ function attachAuthListener() {
     try {
       canManage = await isCurrentUserAdmin(user.uid);
       if (!canManage) {
-        adminRoleStatusEl.textContent = 'Utente non admin';
+        adminRoleStatusEl.textContent = 'Papero semplice';
+        setAdminPanelVisibility(false);
         setControlsEnabled(false);
         clearPlayersTable();
         clearQuestionsTable();
-        setMessage('Non hai la benedizione di Nonna Papera.', true);
+        setMessage('Torna domani per una nuova ricetta.', true);
         if (unsubscribePlayers) {
           unsubscribePlayers();
           unsubscribePlayers = null;
@@ -531,12 +546,14 @@ function attachAuthListener() {
       }
 
       adminRoleStatusEl.textContent = 'Admin attivo';
+      setAdminPanelVisibility(true);
       setControlsEnabled(true);
       setMessage('Pannello pronto. Puoi modificare i giocatori e resettare la partita.');
       attachPlayersListener();
       attachQuestionsListener();
     } catch (error) {
       console.error('Errore verifica ruolo admin:', error);
+      setAdminPanelVisibility(false);
       adminRoleStatusEl.textContent = 'Errore verifica ruolo';
       setControlsEnabled(false);
       clearPlayersTable();

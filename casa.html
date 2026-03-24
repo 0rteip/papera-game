@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Casa di Nonna Papera</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="game-header">
+    <h1>Casa di Nonna Papera</h1>
+    <div class="status-bar">
+      <p>Profilo: <strong id="admin-auth-user">Non autenticato</strong></p>
+      <p>Ruolo: <strong id="admin-role-status">Verifica in corso...</strong></p>
+      <div class="auth-controls">
+        <button id="admin-btn-login" class="btn-secondary">Entra con Google</button>
+        <button id="admin-btn-logout" class="btn-secondary hidden">Esci</button>
+        <a href="index.html" class="btn-secondary admin-link">Torna al gioco</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <section id="non-admin-cover" class="non-admin-cover">
+      <h2>Dispensa Segreta di Nonna Papera</h2>
+      <p>
+        Qui oggi trovi solo la ricetta segreta dei biscotti al miglio per paperelle curiose.
+      </p>
+      <p>
+        Ingredienti: 3 quack, 2 piume di fantasia e un mestolo di fortuna.
+      </p>
+      <p id="admin-message" class="admin-status">
+        Se sei davvero admin, Nonna Papera ti fara entrare da sola.
+      </p>
+    </section>
+
+    <section id="admin-real-content" class="hidden">
+      <div class="admin-actions">
+        <button id="btn-refresh-players" class="btn-secondary" disabled>Aggiorna Lista</button>
+        <button id="btn-reset-game" class="btn-secondary btn-danger" disabled>Reset Partita</button>
+      </div>
+
+      <div class="players-table-wrap">
+        <table class="players-table">
+          <thead>
+            <tr>
+              <th>UID</th>
+              <th>Nome</th>
+              <th>Email</th>
+              <th>Colore</th>
+              <th>Ordine</th>
+              <th>Attivo</th>
+              <th>Posizione</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="players-table-body"></tbody>
+        </table>
+      </div>
+
+      <section class="admin-questions">
+        <h2>Gestione Domande</h2>
+        <div class="admin-question-form">
+          <textarea id="question-text-input" rows="3" placeholder="Scrivi una nuova domanda..."></textarea>
+          <button id="btn-add-question" class="btn-secondary" disabled>Aggiungi Domanda</button>
+        </div>
+        <div class="players-table-wrap">
+          <table class="players-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Testo</th>
+                <th>Attiva</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="questions-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="admin.js"></script>
+</body>
+</html>
