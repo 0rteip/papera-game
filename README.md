@@ -81,3 +81,17 @@ Per il pannello admin apri `admin.html`.
 
 - Le regole in [firestore.rules](firestore.rules) richiedono autenticazione.
 - Le credenziali SMTP sono in Firebase Secrets, non nel frontend.
+
+## Checklist Production Ready
+
+1. Credenziali Firebase client: `apiKey` nel frontend non e un segreto, ma devi limitare l'uso con regole Firestore forti. In Firebase Authentication -> Settings -> Authorized domains, lascia solo i domini reali di produzione e localhost di sviluppo.
+
+1. Firestore rules (least privilege): usa solo le rules presenti in [firestore.rules](firestore.rules) (field-level validation + deny by default). Deploy obbligatorio dopo ogni modifica: `firebase deploy --only firestore:rules`.
+
+1. Admin security: mantieni la collection `admins` con inserimento manuale dei soli UID trusted. Non concedere write lato client su `admins` (gia bloccato dalle rules).
+
+1. SMTP e secrets: usa solo `firebase functions:secrets:set ...` per SMTP (mai commit di credenziali in repo). Ruota periodicamente `SMTP_PASS` e aggiorna i secret in Firebase.
+
+1. Runtime protection consigliata: abilita App Check (reCAPTCHA v3 / Enterprise) per ridurre abuso da client non autorizzati. Monitora Firestore e Functions con alert su errori/spike di traffico.
+
+1. Deploy sicuro: frontend statico da branch protetto, regole e function deployate solo da account amministrativi, verifica post-deploy con test utente normale/admin e operazioni consentite/non consentite.

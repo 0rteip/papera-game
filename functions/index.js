@@ -36,8 +36,16 @@ exports.notifyTurnByEmail = onDocumentUpdated({
     }
 
     const player = playerSnap.data() || {};
+    if (player.in_partita === false) {
+      logger.info('Giocatore non attivo, notifica saltata', { nextTurn });
+      return;
+    }
+
     const recipientEmail = player.email;
-    if (!recipientEmail) {
+    const isValidEmail = typeof recipientEmail === 'string'
+      && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail);
+
+    if (!isValidEmail) {
       logger.warn('Giocatore senza email, notifica saltata', { nextTurn });
       return;
     }

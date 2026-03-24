@@ -11,40 +11,118 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function hasOnlyKeys(data, allowedKeys) {
+      return data.keys().hasOnly(allowedKeys);
+    }
+
+    function changedOnly(allowedKeys) {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly(allowedKeys);
+    }
+
     match /domande/{questionId} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isAdmin()
+        && request.resource.data.testo is string
+        && request.resource.data.testo.size() > 0
+        && request.resource.data.attiva is bool
+        && hasOnlyKeys(
+          request.resource.data,
+          ['testo', 'attiva', 'created_at', 'created_by', 'updated_at', 'updated_by']
+        );
     }
 
     match /giocatori/{playerId} {
       allow read: if isSignedIn();
-      allow create: if (isSignedIn() && request.auth.uid == playerId) || isAdmin();
-      allow update: if (isSignedIn() && request.auth.uid == playerId) || isAdmin();
+      allow create: if (isSelf(playerId)
+        && request.resource.data.nome is string
+        && request.resource.data.nome.size() > 0
+        && request.resource.data.posizione is int
+        && request.resource.data.posizione >= 1
+        && request.resource.data.in_partita is bool
+        && request.resource.data.ordine_turno is int
+        && request.resource.data.colore is string
+        && hasOnlyKeys(
+          request.resource.data,
+          [
+            'nome',
+            'email',
+            'posizione',
+            'colore',
+            'ordine_turno',
+            'in_partita',
+            'domande_risposte',
+            'created_at',
+            'updated_at'
+          ]
+        )) || isAdmin();
+
+      allow update: if isAdmin() || (
+        isSelf(playerId)
+        && changedOnly([
+          'nome',
+          'email',
+          'posizione',
+          'domande_risposte',
+          'domanda_corrente_id',
+          'domanda_corrente_testo',
+          'domanda_bonus_tipo',
+          'updated_at'
+        ])
+        && request.resource.data.nome is string
+        && request.resource.data.nome.size() > 0
+        && request.resource.data.posizione is int
+        && request.resource.data.posizione >= 1
+        && (!('email' in request.resource.data) || request.resource.data.email == null || request.resource.data.email is string)
+        && (!('domande_risposte' in request.resource.data) || request.resource.data.domande_risposte is list)
+      );
+
       allow delete: if isAdmin();
     }
 
     match /risposte_date/{answerId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn()
-        && request.resource.data.id_giocatore == request.auth.uid;
+        && request.resource.data.id_giocatore == request.auth.uid
+        && request.resource.data.id_domanda is string
+        && request.resource.data.id_domanda.size() > 0
+        && request.resource.data.testo_risposta is string
+        && request.resource.data.testo_risposta.size() > 0
+        && hasOnlyKeys(
+          request.resource.data,
+          ['id_giocatore', 'id_domanda', 'testo_risposta', 'data_risposta']
+        );
       allow update, delete: if false;
     }
 
     match /stato_partita/{docId} {
       allow read: if isSignedIn();
-      allow update: if isSignedIn()
-        && (resource.data.turno_attuale_id == request.auth.uid || isAdmin());
+      allow update: if isAdmin()
+        || (
+          isSignedIn()
+          && resource.data.turno_attuale_id == request.auth.uid
+          && changedOnly(['turno_attuale_id', 'updated_at'])
+          && request.resource.data.turno_attuale_id is string
+          && exists(/databases/$(database)/documents/giocatori/$(request.resource.data.turno_attuale_id))
+        );
       allow create: if isAdmin();
       allow delete: if isAdmin();
     }
 
     match /admins/{adminId} {
-      allow read: if isSignedIn() && (request.auth.uid == adminId || isAdmin());
+      allow read: if isSignedIn() && request.auth.uid == adminId;
       allow write: if false;
     }
 
     // La collection mail viene scritta dal backend (Cloud Functions/Admin SDK).
     match /mail/{mailId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
       allow read, write: if false;
     }
   }
