@@ -515,17 +515,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentPosition = Number(myPlayer.posizione) || 1;
     const landedPosition = Math.min(currentPosition + diceValue, totalCells);
     const bonusResult = applyBonus(landedPosition);
-    const newPosition = bonusResult.finalPosition;
+    const finalPosition = bonusResult.finalPosition;
     currentQuestionBonusType = bonusResult.bonusType === 'reroll' ? 'reroll' : null;
 
     await flashCellTwice(currentPosition);
     await showDiceRoll(diceValue);
 
     await updateDoc(doc(db, 'giocatori', currentPlayerId), {
-      posizione: newPosition
+      posizione: landedPosition
     });
 
-    await flashCellTwice(newPosition);
+    await flashCellTwice(landedPosition);
+
+    if (bonusResult.bonusText) {
+      showBonusNotice(`Casella speciale! ${bonusResult.bonusText}`);
+      await sleep(900);
+    }
+
+    if ((bonusResult.bonusType === 'forward' || bonusResult.bonusType === 'backward') && finalPosition !== landedPosition) {
+      await updateDoc(doc(db, 'giocatori', currentPlayerId), {
+        posizione: finalPosition
+      });
+
+      await flashCellTwice(finalPosition);
+    }
 
     const answeredIds = new Set(Array.isArray(myPlayer.domande_risposte) ? myPlayer.domande_risposte : []);
     const selectedQuestion = await pickRandomQuestionExcluding(answeredIds);
@@ -544,10 +557,6 @@ document.addEventListener('DOMContentLoaded', () => {
       domanda_bonus_tipo: currentQuestionBonusType || deleteField(),
       updated_at: serverTimestamp()
     });
-
-    if (bonusResult.bonusText) {
-      showBonusNotice(bonusResult.bonusText);
-    }
 
     await sleep(450);
 
