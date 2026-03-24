@@ -34,8 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnSubmitAnswer = document.getElementById('btn-submit-answer');
   const diceOverlayEl = document.getElementById('dice-result-overlay');
   const diceResultValueEl = document.getElementById('dice-result-value');
+  const bonusEventTextEl = document.getElementById('bonus-event-text');
 
-  
+
   const firebaseConfig = {
     apiKey: "AIzaSyDhRoifzgbUBCQcSgyzAh8fkmtdFtsol-A",
     authDomain: "papera-game.firebaseapp.com",
@@ -51,17 +52,35 @@ document.addEventListener('DOMContentLoaded', () => {
   const auth = getAuth(app);
   const authProvider = new GoogleAuthProvider();
 
-  let totalCells = 60;
+  let totalCells = 48;
   let boardCreatedForCells = 0;
+  let lastBoardColumns = 0;
   let currentPlayerId = null;
   let currentTurnPlayerId = null;
   let currentQuestion = null;
+  let currentQuestionBonusType = null;
   let isSubmittingAnswer = false;
   let hasShownPermissionAlert = false;
   let unsubscribePlayers = null;
   let unsubscribeGameInfo = null;
   const playersById = new Map();
   const fallbackColors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'];
+  const BONUS_CELLS = new Map([
+    [3, { type: 'forward', value: 2, label: '+2' }],
+    [6, { type: 'forward', value: 3, label: '+3' }],
+    [8, { type: 'reroll', label: 'Ancora' }],
+    [11, { type: 'backward', value: 2, label: '-2' }],
+    [14, { type: 'forward', value: 2, label: '+2' }],
+    [18, { type: 'reroll', label: 'Ancora' }],
+    [21, { type: 'backward', value: 2, label: '-2' }],
+    [24, { type: 'forward', value: 4, label: '+4' }],
+    [27, { type: 'reroll', label: 'Ancora' }],
+    [30, { type: 'forward', value: 2, label: '+2' }],
+    [33, { type: 'backward', value: 3, label: '-3' }],
+    [37, { type: 'forward', value: 3, label: '+3' }],
+    [41, { type: 'reroll', label: 'Ancora' }],
+    [44, { type: 'backward', value: 2, label: '-2' }]
+  ]);
 
   function isPermissionDenied(error) {
     return error?.code === 'permission-denied'
@@ -94,6 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentPlayerId = null;
     currentTurnPlayerId = null;
     currentQuestion = null;
+    currentQuestionBonusType = null;
     playersById.clear();
     renderPawns();
     closeQuestionModal();
@@ -150,13 +170,55 @@ document.addEventListener('DOMContentLoaded', () => {
     return Array.from(playersById.entries()).filter(([, player]) => player?.in_partita !== false);
   }
 
+  function getBoardColumns() {
+    const raw = getComputedStyle(boardContainer).getPropertyValue('--board-columns').trim();
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 4;
+  }
+
+  function getPathPosition(index, columns) {
+    const row = Math.floor(index / columns);
+    const posInRow = index % columns;
+    const col = row % 2 === 0 ? posInRow : (columns - 1 - posInRow);
+    return { row, col };
+  }
+
+  function getNextDirection(index, cellsCount, columns) {
+    if (index >= cellsCount - 1) return 'none';
+
+    const current = getPathPosition(index, columns);
+    const next = getPathPosition(index + 1, columns);
+
+    if (next.row > current.row) return 'down';
+    if (next.col > current.col) return 'right';
+    return 'left';
+  }
+
   function createBoard(cellsCount) {
     boardContainer.innerHTML = '';
+    const columns = getBoardColumns();
+    lastBoardColumns = columns;
 
     for (let i = 1; i <= cellsCount; i++) {
+      const index = i - 1;
+      const pathPos = getPathPosition(index, columns);
+      const nextDirection = getNextDirection(index, cellsCount, columns);
       const cell = document.createElement('div');
       cell.classList.add('cell');
       cell.id = `cell-${i}`;
+      cell.style.gridColumn = String(pathPos.col + 1);
+      cell.style.gridRow = String(pathPos.row + 1);
+      cell.dataset.nextDirection = nextDirection;
+
+      const bonus = BONUS_CELLS.get(i);
+      if (bonus) {
+        cell.classList.add('bonus-cell', `bonus-${bonus.type}`);
+
+        const badge = document.createElement('span');
+        badge.classList.add('bonus-badge');
+        badge.textContent = bonus.label;
+        cell.appendChild(badge);
+      }
 
       const spanNumber = document.createElement('span');
       spanNumber.classList.add('cell-number');
@@ -210,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const pawnDiv = document.createElement('div');
       pawnDiv.classList.add('pawn');
       pawnDiv.id = `pawn-${playerId}`;
-      pawnDiv.style.backgroundColor = player.colore || '#666666';
+      pawnDiv.style.setProperty('--pawn-color', player.colore || '#666666');
       pawnDiv.title = player.nome || playerId;
       pawnDiv.textContent = getPlayerInitials(player.nome, playerId);
       pawnDiv.setAttribute('aria-label', `Pedina ${player.nome || playerId}`);
@@ -343,10 +405,71 @@ document.addEventListener('DOMContentLoaded', () => {
     questionModal.classList.add('hidden');
   }
 
+  function showBonusNotice(text) {
+    if (!bonusEventTextEl) return;
+
+    bonusEventTextEl.textContent = text;
+    bonusEventTextEl.classList.remove('hidden');
+
+    window.setTimeout(() => {
+      bonusEventTextEl.classList.add('hidden');
+    }, 2200);
+  }
+
+  function applyBonus(position) {
+    const bonus = BONUS_CELLS.get(position);
+    if (!bonus) {
+      return {
+        finalPosition: position,
+        bonusType: null,
+        bonusText: ''
+      };
+    }
+
+    if (bonus.type === 'forward') {
+      const finalPosition = Math.min(totalCells, position + Number(bonus.value || 0));
+      return {
+        finalPosition,
+        bonusType: 'forward',
+        bonusText: `Bonus! Avanzi di ${bonus.value} caselle (arrivi alla ${finalPosition}).`
+      };
+    }
+
+    if (bonus.type === 'backward') {
+      const finalPosition = Math.max(1, position - Number(bonus.value || 0));
+      return {
+        finalPosition,
+        bonusType: 'backward',
+        bonusText: `Ops! Torni indietro di ${bonus.value} caselle (arrivi alla ${finalPosition}).`
+      };
+    }
+
+    return {
+      finalPosition: position,
+      bonusType: 'reroll',
+      bonusText: 'Bonus! Dopo la risposta, tocchera ancora a te tirare il dado.'
+    };
+  }
+
   function sleep(ms) {
     return new Promise((resolve) => {
       window.setTimeout(resolve, ms);
     });
+  }
+
+  async function flashCellTwice(cellNumber) {
+    const cell = document.getElementById(`cell-${cellNumber}`);
+    if (!cell) return;
+
+    for (let i = 0; i < 2; i++) {
+      cell.classList.remove('start-flash');
+      // Force reflow so animation reliably restarts each loop.
+      void cell.offsetWidth;
+      cell.classList.add('start-flash');
+      await sleep(700);
+    }
+
+    cell.classList.remove('start-flash');
   }
 
   async function showDiceRoll(resultValue) {
@@ -376,6 +499,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (myPlayer.domanda_corrente_id) {
+      currentQuestionBonusType = myPlayer.domanda_bonus_tipo || null;
       openQuestionModal({
         id: myPlayer.domanda_corrente_id,
         testo: myPlayer.domanda_corrente_testo || 'Domanda senza testo'
@@ -385,13 +509,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const diceValue = Math.floor(Math.random() * 6) + 1;
     const currentPosition = Number(myPlayer.posizione) || 1;
-    const newPosition = Math.min(currentPosition + diceValue, totalCells);
+    const landedPosition = Math.min(currentPosition + diceValue, totalCells);
+    const bonusResult = applyBonus(landedPosition);
+    const newPosition = bonusResult.finalPosition;
+    currentQuestionBonusType = bonusResult.bonusType === 'reroll' ? 'reroll' : null;
 
+    await flashCellTwice(currentPosition);
     await showDiceRoll(diceValue);
 
     await updateDoc(doc(db, 'giocatori', currentPlayerId), {
       posizione: newPosition
     });
+
+    await flashCellTwice(newPosition);
 
     const answeredIds = new Set(Array.isArray(myPlayer.domande_risposte) ? myPlayer.domande_risposte : []);
     const selectedQuestion = await pickRandomQuestionExcluding(answeredIds);
@@ -407,8 +537,13 @@ document.addEventListener('DOMContentLoaded', () => {
     await updateDoc(doc(db, 'giocatori', currentPlayerId), {
       domanda_corrente_id: selectedQuestion.id,
       domanda_corrente_testo: selectedQuestion.testo || '',
+      domanda_bonus_tipo: currentQuestionBonusType || deleteField(),
       updated_at: serverTimestamp()
     });
+
+    if (bonusResult.bonusText) {
+      showBonusNotice(bonusResult.bonusText);
+    }
 
     await sleep(450);
 
@@ -430,6 +565,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    const shouldPlayAgain = (player.domanda_bonus_tipo || currentQuestionBonusType) === 'reroll';
+
     isSubmittingAnswer = true;
     btnSubmitAnswer.disabled = true;
 
@@ -448,14 +585,16 @@ document.addEventListener('DOMContentLoaded', () => {
         domande_risposte: arrayUnion(currentQuestion.id),
         domanda_corrente_id: deleteField(),
         domanda_corrente_testo: deleteField(),
+        domanda_bonus_tipo: deleteField(),
         updated_at: serverTimestamp()
       });
 
       await updateDoc(doc(db, 'stato_partita', 'info_generali'), {
-        turno_attuale_id: getNextPlayerId()
+        turno_attuale_id: shouldPlayAgain ? currentPlayerId : getNextPlayerId()
       });
 
       currentQuestion = null;
+      currentQuestionBonusType = null;
       closeQuestionModal();
     } catch (error) {
       if (isPermissionDenied(error)) {
@@ -485,10 +624,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (boardCreatedForCells !== totalCells) {
           createBoard(totalCells);
+        } else {
+          const columns = getBoardColumns();
+          if (columns !== lastBoardColumns) {
+            createBoard(totalCells);
+          }
         }
 
         const me = playersById.get(currentPlayerId);
         if (me?.domanda_corrente_id) {
+          currentQuestionBonusType = me.domanda_bonus_tipo || null;
           if (!currentQuestion || currentQuestion.id !== me.domanda_corrente_id) {
             openQuestionModal({
               id: me.domanda_corrente_id,
@@ -498,6 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (currentQuestion && currentQuestion.id) {
           closeQuestionModal();
           currentQuestion = null;
+          currentQuestionBonusType = null;
         }
 
         renderPawns();
@@ -517,7 +663,7 @@ document.addEventListener('DOMContentLoaded', () => {
       doc(db, 'stato_partita', 'info_generali'),
       (snapshot) => {
         const gameInfo = snapshot.data() || {};
-        const nextTotalCells = Number(gameInfo.totale_caselle) || 60;
+        const nextTotalCells = Number(gameInfo.totale_caselle) || 48;
 
         if (nextTotalCells !== totalCells) {
           totalCells = nextTotalCells;
@@ -619,6 +765,14 @@ document.addEventListener('DOMContentLoaded', () => {
     createBoard(totalCells);
     attachEvents();
     attachAuthListener();
+
+    window.addEventListener('resize', () => {
+      const columns = getBoardColumns();
+      if (columns !== lastBoardColumns) {
+        createBoard(totalCells);
+        renderPawns();
+      }
+    });
 
     // Validazione leggera per evitare inizializzazione con config placeholder.
     if (firebaseConfig.projectId === 'REPLACE_ME') {

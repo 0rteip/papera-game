@@ -182,7 +182,7 @@ async function resetGame() {
   const nextTurnId = activeOrdered.length > 0 ? activeOrdered[0].id : null;
 
   batch.set(gameInfoRef, {
-    totale_caselle: Number(gameInfo.totale_caselle) || 60,
+    totale_caselle: Number(gameInfo.totale_caselle) || 48,
     turno_attuale_id: nextTurnId,
     updated_at: serverTimestamp()
   }, { merge: true });
@@ -452,7 +452,7 @@ function attachAuthListener() {
         setControlsEnabled(false);
         clearPlayersTable();
         clearQuestionsTable();
-        setMessage('Questo account non ha privilegi admin. Crea il doc admins/{uid} su Firestore.', true);
+        setMessage('Non hai la benedizione di Nonna Papera.', true);
         if (unsubscribePlayers) {
           unsubscribePlayers();
           unsubscribePlayers = null;
