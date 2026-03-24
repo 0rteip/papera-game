@@ -21,6 +21,7 @@ import {
 
 document.addEventListener('DOMContentLoaded', () => {
   const boardContainer = document.getElementById('board');
+  const playersLegendListEl = document.getElementById('players-legend-list');
   const btnRoll = document.getElementById('btn-roll-dice');
   const currentPlayerNameEl = document.getElementById('current-player-name');
   const authUserNameEl = document.getElementById('auth-user-name');
@@ -212,6 +213,48 @@ document.addEventListener('DOMContentLoaded', () => {
       pawnDiv.setAttribute('aria-label', `Pedina ${player.nome || playerId}`);
       container.appendChild(pawnDiv);
     });
+
+    renderPlayersLegend();
+  }
+
+  function renderPlayersLegend() {
+    if (!playersLegendListEl) return;
+
+    const activePlayers = getActivePlayersEntries()
+      .sort((a, b) => {
+        const playerA = a[1] || {};
+        const playerB = b[1] || {};
+        const orderA = Number(playerA.ordine_turno);
+        const orderB = Number(playerB.ordine_turno);
+
+        if (Number.isFinite(orderA) && Number.isFinite(orderB) && orderA !== orderB) {
+          return orderA - orderB;
+        }
+
+        const nameA = String(playerA.nome || a[0]);
+        const nameB = String(playerB.nome || b[0]);
+        return nameA.localeCompare(nameB);
+      });
+
+    if (activePlayers.length === 0) {
+      playersLegendListEl.innerHTML = '<span class="legend-chip">Nessun giocatore attivo</span>';
+      return;
+    }
+
+    playersLegendListEl.innerHTML = activePlayers
+      .map(([playerId, player]) => {
+        const name = player.nome || playerId;
+        const initials = getPlayerInitials(player.nome, playerId);
+        const color = player.colore || '#666666';
+
+        return `
+          <span class="legend-chip" title="${name}">
+            <span class="legend-dot" style="background-color: ${color};">${initials}</span>
+            <span>${name}</span>
+          </span>
+        `;
+      })
+      .join('');
   }
 
   function updateTurnUi() {

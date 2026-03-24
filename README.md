@@ -1,6 +1,6 @@
 # papera-game
 
-Gioco dell'Oca asincrono con frontend statico (GitHub Pages) e backend Firebase.
+Gioco della papera asincrono con frontend statico (GitHub Pages) e backend Firebase.
 
 ## Cosa fa ora
 
