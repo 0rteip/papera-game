@@ -936,15 +936,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  bootstrap().catch((error) => {
-    if (isPermissionDenied(error)) {
-      handlePermissionDenied(error, 'bootstrap');
-      return;
-    }
+  function startBootstrap() {
+    bootstrap().catch((error) => {
+      if (isPermissionDenied(error)) {
+        handlePermissionDenied(error, 'bootstrap');
+        return;
+      }
 
-    console.error('Errore inizializzazione app:', error);
-    currentPlayerNameEl.textContent = 'Errore di inizializzazione';
-    btnRoll.disabled = true;
-    alert('Errore inizializzazione Firebase/Firestore. Controlla console e configurazione.');
-  });
+      console.error('Errore inizializzazione app:', error);
+      currentPlayerNameEl.textContent = 'Errore di inizializzazione';
+      btnRoll.disabled = true;
+      alert('Errore inizializzazione Firebase/Firestore. Controlla console e configurazione.');
+    });
+  }
+
+  if (document.readyState === 'complete') {
+    startBootstrap();
+  } else {
+    window.addEventListener('load', startBootstrap, { once: true });
+  }
 });
