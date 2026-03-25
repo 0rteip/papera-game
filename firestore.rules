@@ -87,6 +87,8 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create: if isSignedIn()
         && request.resource.data.id_giocatore == request.auth.uid
+        && request.resource.data.partita_id is string
+        && request.resource.data.partita_id.size() > 0
         && request.resource.data.id_domanda is string
         && request.resource.data.id_domanda.size() > 0
         && request.resource.data.testo_risposta is string
@@ -100,6 +102,7 @@ service cloud.firestore {
           request.resource.data,
           [
             'id_giocatore',
+            'partita_id',
             'id_domanda',
             'testo_risposta',
             'data_risposta',
@@ -109,7 +112,8 @@ service cloud.firestore {
             'timestamp'
           ]
         );
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isAdmin();
     }
 
     match /stato_partita/{docId} {

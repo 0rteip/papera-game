@@ -43,6 +43,8 @@
       <div class="admin-actions">
         <button id="btn-refresh-players" class="btn-secondary" disabled>Aggiorna Lista</button>
         <button id="btn-reset-game" class="btn-secondary btn-danger" disabled>Reset Partita</button>
+        <button id="btn-export-report-pdf" class="btn-secondary" disabled>Esporta Report PDF</button>
+        <button id="btn-clean-old-answers" class="btn-secondary btn-danger" disabled>Pulisci Risposte Vecchie</button>
       </div>
 
       <div class="players-table-wrap">
@@ -86,6 +88,7 @@
     </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
   <script type="module" src="admin.js"></script>
 </body>
 </html>

@@ -43,6 +43,8 @@ const btnLogin = document.getElementById('admin-btn-login');
 const btnLogout = document.getElementById('admin-btn-logout');
 const btnRefreshPlayers = document.getElementById('btn-refresh-players');
 const btnResetGame = document.getElementById('btn-reset-game');
+const btnExportReportPdf = document.getElementById('btn-export-report-pdf');
+const btnCleanOldAnswers = document.getElementById('btn-clean-old-answers');
 const btnAddQuestion = document.getElementById('btn-add-question');
 const questionTextInput = document.getElementById('question-text-input');
 const tableBody = document.getElementById('players-table-body');
@@ -72,7 +74,157 @@ function escapeHtml(raw) {
 function setControlsEnabled(enabled) {
   btnRefreshPlayers.disabled = !enabled;
   btnResetGame.disabled = !enabled;
+  if (btnExportReportPdf) {
+    btnExportReportPdf.disabled = !enabled;
+  }
+  if (btnCleanOldAnswers) {
+    btnCleanOldAnswers.disabled = !enabled;
+  }
   btnAddQuestion.disabled = !enabled;
+}
+
+function getTimestampMillis(value) {
+  if (!value) return 0;
+  if (typeof value.toMillis === 'function') return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function buildGameId() {
+  const now = new Date();
+  const stamp = now.toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
+  return `partita-${stamp}`;
+}
+
+function formatFirestoreDate(value) {
+  if (!value) return '-';
+
+  if (typeof value.toDate === 'function') {
+    const date = value.toDate();
+    return date.toLocaleString('it-IT');
+  }
+
+  if (value instanceof Date) {
+    return value.toLocaleString('it-IT');
+  }
+
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleString('it-IT');
+  }
+
+  return '-';
+}
+
+function getReportTimestampValue(entry) {
+  const primary = entry.timestamp;
+  const fallback = entry.data_risposta;
+  const candidate = primary || fallback;
+
+  if (!candidate) return 0;
+  if (typeof candidate.toMillis === 'function') return candidate.toMillis();
+  if (candidate instanceof Date) return candidate.getTime();
+
+  const parsed = new Date(candidate).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function ensurePdfRoom(pdf, y, minNeeded, pageHeight, marginY) {
+  if (y + minNeeded <= pageHeight - marginY) {
+    return y;
+  }
+
+  pdf.addPage();
+  return marginY;
+}
+
+async function exportQuestionsReportPdf() {
+  if (!canManage) {
+    setMessage('Solo admin puo esportare il report.', true);
+    return;
+  }
+
+  const jsPdfNs = window.jspdf;
+  if (!jsPdfNs || !jsPdfNs.jsPDF) {
+    setMessage('Libreria PDF non disponibile. Ricarica la pagina.', true);
+    return;
+  }
+
+  const reportSnap = await getDocs(collection(db, 'risposte_date'));
+  const reportRows = reportSnap.docs
+    .map((docSnap) => {
+      const data = docSnap.data() || {};
+      return {
+        id: docSnap.id,
+        id_domanda: data.id_domanda || '-',
+        testo_domanda: data.testo_domanda || '',
+        testo_risposta: data.testo_risposta || '',
+        nome_giocatore: data.nome_giocatore || data.id_giocatore || '-',
+        timestamp: data.timestamp || data.data_risposta || null,
+        data_risposta: data.data_risposta || null
+      };
+    })
+    .sort((a, b) => getReportTimestampValue(a) - getReportTimestampValue(b));
+
+  if (reportRows.length === 0) {
+    setMessage('Nessuna risposta trovata in risposte_date.', true);
+    return;
+  }
+
+  const { jsPDF } = jsPdfNs;
+  const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+  const marginX = 42;
+  const marginY = 44;
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const contentWidth = pageWidth - marginX * 2;
+  let y = marginY;
+
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(18);
+  pdf.text('Report Domande Partita', marginX, y);
+  y += 22;
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(10);
+  pdf.text(`Generato il: ${new Date().toLocaleString('it-IT')}`, marginX, y);
+  y += 14;
+  pdf.text(`Totale risposte: ${reportRows.length}`, marginX, y);
+  y += 18;
+
+  reportRows.forEach((row, index) => {
+    y = ensurePdfRoom(pdf, y, 88, pageHeight, marginY);
+
+    pdf.setDrawColor(220, 220, 220);
+    pdf.line(marginX, y - 8, pageWidth - marginX, y - 8);
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(11);
+    pdf.text(`${index + 1}. ${row.nome_giocatore}`, marginX, y + 8);
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    const dateLabel = formatFirestoreDate(row.timestamp || row.data_risposta);
+    pdf.text(`Data: ${dateLabel}`, marginX, y + 24);
+    pdf.text(`ID domanda: ${row.id_domanda}`, marginX, y + 36);
+
+    const questionLines = pdf.splitTextToSize(`Domanda: ${row.testo_domanda || '-'}`, contentWidth);
+    y += 50;
+    y = ensurePdfRoom(pdf, y, questionLines.length * 11 + 16, pageHeight, marginY);
+    pdf.text(questionLines, marginX, y);
+    y += questionLines.length * 11 + 6;
+
+    const answerLines = pdf.splitTextToSize(`Risposta: ${row.testo_risposta || '-'}`, contentWidth);
+    y = ensurePdfRoom(pdf, y, answerLines.length * 11 + 12, pageHeight, marginY);
+    pdf.text(answerLines, marginX, y);
+    y += answerLines.length * 11 + 16;
+  });
+
+  const filenameDate = new Date().toISOString().slice(0, 10);
+  pdf.save(`report-domande-${filenameDate}.pdf`);
+  setMessage('Report PDF generato con successo.');
 }
 
 function setAdminPanelVisibility(isAdmin) {
@@ -254,15 +406,62 @@ async function resetGame() {
   const gameInfoSnap = await getDoc(gameInfoRef);
   const gameInfo = gameInfoSnap.data() || {};
   const nextTurnId = activeOrdered.length > 0 ? activeOrdered[0].id : null;
+  const nextGameId = buildGameId();
 
   batch.set(gameInfoRef, {
     totale_caselle: Number(gameInfo.totale_caselle) || 48,
+    partita_id: nextGameId,
     turno_attuale_id: nextTurnId,
     updated_at: serverTimestamp()
   }, { merge: true });
 
   await batch.commit();
-  setMessage('Partita resettata con successo.');
+  setMessage(`Partita resettata con successo. ID: ${nextGameId}`);
+}
+
+async function cleanOldAnswers() {
+  const input = window.prompt('Cancella risposte piu vecchie di quanti giorni? (es. 30)\nUsa 0 per cancellare tutte.', '30');
+  if (input === null) return;
+
+  const days = Number(input);
+  if (!Number.isFinite(days) || days < 0) {
+    setMessage('Valore non valido. Inserisci un numero >= 0.', true);
+    return;
+  }
+
+  const confirmText = days === 0
+    ? 'Confermi la cancellazione di TUTTE le risposte salvate?'
+    : `Confermi la cancellazione delle risposte vecchie piu di ${days} giorni?`;
+
+  const ok = window.confirm(confirmText);
+  if (!ok) return;
+
+  const cutoff = Date.now() - (days * 24 * 60 * 60 * 1000);
+  const answersSnap = await getDocs(collection(db, 'risposte_date'));
+
+  const toDeleteRefs = answersSnap.docs
+    .filter((docSnap) => {
+      if (days === 0) return true;
+      const data = docSnap.data() || {};
+      const ts = getTimestampMillis(data.timestamp || data.data_risposta);
+      return ts > 0 && ts < cutoff;
+    })
+    .map((docSnap) => doc(db, 'risposte_date', docSnap.id));
+
+  if (toDeleteRefs.length === 0) {
+    setMessage('Nessuna risposta vecchia da cancellare.');
+    return;
+  }
+
+  const chunkSize = 400;
+  for (let i = 0; i < toDeleteRefs.length; i += chunkSize) {
+    const chunk = toDeleteRefs.slice(i, i + chunkSize);
+    const batch = writeBatch(db);
+    chunk.forEach((ref) => batch.delete(ref));
+    await batch.commit();
+  }
+
+  setMessage(`Cancellate ${toDeleteRefs.length} risposte.`);
 }
 
 function attachPlayersListener() {
@@ -435,6 +634,34 @@ function wireEvents() {
       setMessage('Reset non riuscito. Controlla i permessi admin.', true);
     }
   });
+
+  if (btnExportReportPdf) {
+    btnExportReportPdf.addEventListener('click', async () => {
+      try {
+        btnExportReportPdf.disabled = true;
+        await exportQuestionsReportPdf();
+      } catch (error) {
+        console.error('Errore export PDF:', error);
+        setMessage('Export PDF non riuscito.', true);
+      } finally {
+        btnExportReportPdf.disabled = !canManage;
+      }
+    });
+  }
+
+  if (btnCleanOldAnswers) {
+    btnCleanOldAnswers.addEventListener('click', async () => {
+      try {
+        btnCleanOldAnswers.disabled = true;
+        await cleanOldAnswers();
+      } catch (error) {
+        console.error('Errore pulizia risposte vecchie:', error);
+        setMessage('Pulizia risposte non riuscita.', true);
+      } finally {
+        btnCleanOldAnswers.disabled = !canManage;
+      }
+    });
+  }
 
   btnAddQuestion.addEventListener('click', async () => {
     try {

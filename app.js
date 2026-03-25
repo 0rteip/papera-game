@@ -61,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastBoardColumns = 0;
   let currentPlayerId = null;
   let currentTurnPlayerId = null;
+  let currentGameId = null;
   let currentQuestion = null;
   let currentQuestionBonusType = null;
   let gameOverWinnerId = null;
@@ -124,6 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     currentPlayerId = null;
     currentTurnPlayerId = null;
+    currentGameId = null;
     currentQuestion = null;
     currentQuestionBonusType = null;
     gameOverWinnerId = null;
@@ -688,6 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       await setDoc(doc(collection(db, 'risposte_date')), {
         id_giocatore: currentPlayerId,
+        partita_id: currentGameId || 'partita-sconosciuta',
         nome_giocatore: player.nome || currentPlayerId,
         email_giocatore: player.email || null,
         id_domanda: currentQuestion.id,
@@ -813,6 +816,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         currentTurnPlayerId = gameInfo.turno_attuale_id || null;
+        currentGameId = typeof gameInfo.partita_id === 'string' && gameInfo.partita_id.trim()
+          ? gameInfo.partita_id.trim()
+          : null;
         updateTurnUi();
       },
       (error) => {
