@@ -182,6 +182,31 @@ async function exportQuestionsReportPdf() {
   const contentWidth = pageWidth - marginX * 2;
   let y = marginY;
 
+  const groupedByQuestion = [];
+  const groupsByKey = new Map();
+
+  reportRows.forEach((row, index) => {
+    const questionId = String(row.id_domanda || '-');
+    const questionText = String(row.testo_domanda || '').trim();
+    const key = questionId !== '-' ? questionId : `no-id-${index}-${questionText}`;
+
+    if (!groupsByKey.has(key)) {
+      const group = {
+        id_domanda: questionId,
+        testo_domanda: questionText || 'Domanda senza testo',
+        risposte: []
+      };
+      groupsByKey.set(key, group);
+      groupedByQuestion.push(group);
+    }
+
+    groupsByKey.get(key).risposte.push({
+      nome_giocatore: row.nome_giocatore || '-',
+      testo_risposta: row.testo_risposta || '-',
+      timestamp: row.timestamp || row.data_risposta || null
+    });
+  });
+
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(18);
   pdf.text('Report Domande Partita', marginX, y);
@@ -191,35 +216,45 @@ async function exportQuestionsReportPdf() {
   pdf.setFontSize(10);
   pdf.text(`Generato il: ${new Date().toLocaleString('it-IT')}`, marginX, y);
   y += 14;
+  pdf.text(`Totale domande: ${groupedByQuestion.length}`, marginX, y);
+  y += 14;
   pdf.text(`Totale risposte: ${reportRows.length}`, marginX, y);
   y += 18;
 
-  reportRows.forEach((row, index) => {
-    y = ensurePdfRoom(pdf, y, 88, pageHeight, marginY);
+  groupedByQuestion.forEach((group, index) => {
+    y = ensurePdfRoom(pdf, y, 96, pageHeight, marginY);
 
     pdf.setDrawColor(220, 220, 220);
     pdf.line(marginX, y - 8, pageWidth - marginX, y - 8);
 
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(11);
-    pdf.text(`${index + 1}. ${row.nome_giocatore}`, marginX, y + 8);
+    pdf.setFontSize(12);
+    const headingText = group.id_domanda && group.id_domanda !== '-'
+      ? `Domanda ${index + 1} (${group.id_domanda})`
+      : `Domanda ${index + 1}`;
+    pdf.text(headingText, marginX, y + 10);
 
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
-    const dateLabel = formatFirestoreDate(row.timestamp || row.data_risposta);
-    pdf.text(`Data: ${dateLabel}`, marginX, y + 24);
-    pdf.text(`ID domanda: ${row.id_domanda}`, marginX, y + 36);
-
-    const questionLines = pdf.splitTextToSize(`Domanda: ${row.testo_domanda || '-'}`, contentWidth);
-    y += 50;
+    const questionLines = pdf.splitTextToSize(group.testo_domanda, contentWidth);
+    y += 30;
     y = ensurePdfRoom(pdf, y, questionLines.length * 11 + 16, pageHeight, marginY);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(11);
     pdf.text(questionLines, marginX, y);
-    y += questionLines.length * 11 + 6;
+    y += questionLines.length * 11 + 8;
 
-    const answerLines = pdf.splitTextToSize(`Risposta: ${row.testo_risposta || '-'}`, contentWidth);
-    y = ensurePdfRoom(pdf, y, answerLines.length * 11 + 12, pageHeight, marginY);
-    pdf.text(answerLines, marginX, y);
-    y += answerLines.length * 11 + 16;
+    group.risposte.forEach((item) => {
+      const dateLabel = formatFirestoreDate(item.timestamp);
+      const answerLine = `${item.nome_giocatore}: ${item.testo_risposta} (${dateLabel})`;
+      const answerLines = pdf.splitTextToSize(answerLine, contentWidth - 10);
+
+      y = ensurePdfRoom(pdf, y, answerLines.length * 11 + 8, pageHeight, marginY);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      pdf.text(answerLines, marginX + 10, y);
+      y += answerLines.length * 11 + 4;
+    });
+
+    y += 8;
   });
 
   const filenameDate = new Date().toISOString().slice(0, 10);
